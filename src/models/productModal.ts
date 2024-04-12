@@ -6,12 +6,15 @@ export interface productServiceAttributes {
     id?: number;
     productName?: string;
     qty?: number;
+    scannedValue?: string;
     expiryDate?: Date;
+    car?: string;
     purchasePrice?: number;
     mrp?: number;
     sellingPrice?: number;
     flatDiscount?: number;
     percentageDiscount: string;
+    gst?: number;
     createdAt?: Date;
     updatedAt?: Date;
     createdBy?: string;
@@ -36,6 +39,22 @@ const defineProductServiceModel = (sequelize: Sequelize) => {
                 type: STRING,
                 allowNull: false,
 
+            },
+            car:{
+                type: INTEGER,
+                allowNull: true,
+                references: {
+                    model: 'cars',
+                    key: 'id',
+                },
+            },
+            gst: {
+                type: INTEGER,
+                allowNull: true,
+            },
+            scannedValue:{
+                type: STRING,
+                allowNull: true,
             },
             qty: {
                 type: INTEGER,

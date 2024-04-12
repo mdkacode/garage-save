@@ -1,15 +1,16 @@
 import express, { Request, Response } from "express";
 import { Op } from "sequelize";
-import { OrderService, ProductService } from "..";
+import { CarListService, OrderService, ProductService } from "..";
 import sequelize from "sequelize";
 // import defineOrderService, { OrderService, carServiceOrderAttributes } from "./models/OrderService";
 
 const router = express.Router();
 
 // Create a new car service order
+// Create a new car service order
 router.post("/addCustomer", async (req: Request, res: Response) => {
     try {
-        const { customerNumber = "", serviceName = "", serviceType = "", serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0 } = req.body;
+        const { customerNumber = "", carNumber = '', carKilometer = 0, serviceName = "", serviceType = "", car, serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0 } = req.body;
         const calculatePrice = [];
         // Check if the customerNumber is of type "customer"
         // You can add additional validation logic here if needed
@@ -17,6 +18,9 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
         const carServiceOrder = await OrderService.create({
             customerNumber,
             serviceName,
+            car,
+            carNumber,
+            carKilometer,
             serviceType,
             serviceDate,
             estimatedCost,
@@ -51,7 +55,8 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
                 calculatePrice.push(
                     {
                         productName: productInfo?.productName,
-                        productPrice: acutalSellingPrice,
+                        productPrice: acutalSellingPrice ,
+                        poductGst:  productInfo?.gst || 0,
                         productMrp: productInfo?.mrp,
                         productDiscount: productInfo?.mrp ? productInfo?.mrp - acutalSellingPrice : '-',
                     }
@@ -64,6 +69,66 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error", error });
+    }
+});
+
+// Read all car service orders with the same garageNumber
+router.get("/customers/:garageNumber", async (req: Request, res: Response) => {
+    try {
+        const { garageNumber } = req.params;
+        const carServiceOrders = await OrderService.findAll({ where: { garageNumber } });
+
+        const ordersWithProducts = [];
+        for (const order of carServiceOrders) {
+            const productIds = order.productUsed;
+            const products = await ProductService.findAll({ where: { id: { [Op.in]: productIds } } });
+            const calculatePrice = [];
+            if (order.car) {
+                let carDetails = await CarListService.findByPk(order.car);
+                //@ts-ignore
+                order['car'] = {
+                    id: carDetails?.id,
+                    label: `${carDetails?.model} ${carDetails?.brand}`,
+                    value: carDetails?.id?.toLocaleString(),
+                    image: carDetails?.imageUri,
+                    year: carDetails?.year,
+                    subLabel: carDetails?.fuel_type,
+                    addedBy: carDetails?.addedBy
+                };
+            }
+
+            for (const product of products) {
+                if (product.sellingPrice && product.sellingPrice > 0) {
+                    let actualSellingPrice = product.sellingPrice;
+                    if (product.flatDiscount && product.flatDiscount > 0) {
+                        actualSellingPrice = product.sellingPrice - product.flatDiscount;
+                    }
+                    if (product.percentageDiscount && Number(product.percentageDiscount) > 0) {
+                        actualSellingPrice = product.sellingPrice - (product.sellingPrice * Number(product.percentageDiscount) / 100);
+                    }
+                    calculatePrice.push({
+                        ...product.dataValues,
+                        label: product.productName,
+                        subLabel: actualSellingPrice,
+                        productPrice: actualSellingPrice,
+                        productMrp: product.mrp,
+                        productDiscount: product.mrp ? product.mrp - actualSellingPrice : '-',
+                    });
+                }
+
+               
+                
+            }
+            const totalPrice = calculatePrice.reduce((total, product) => total + product.productPrice, 0);
+            const totalDiscount = calculatePrice.reduce((total, product) => total + (product?.productMrp ? product?.productMrp - product.productPrice : 0), 0);
+            ordersWithProducts.push({ order, products: calculatePrice, totalPrice, totalDiscount });
+        }
+        res.status(200).json(ordersWithProducts);
+
+        // res.status(201).json({ carServiceOrder, products: calculatePrice });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
     }
 });
 
@@ -96,10 +161,11 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // Update a car service order by ID
-router.put("updateCustomer/:id", async (req: Request, res: Response) => {
+router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
-        const { customerNumber, serviceName, serviceType, serviceDate, isCompleted, productUsed, garageNumber } = req.body;
+
+        const { id } = req.body;
+        const { customerNumber, serviceName, carKilometer, car, carNumber, estimatedCost, serviceType, serviceDate, isCompleted, productUsed, garageNumber } = req.body;
 
         // Check if the customerNumber is of type "customer"
         // You can add additional validation logic here if needed
@@ -114,6 +180,10 @@ router.put("updateCustomer/:id", async (req: Request, res: Response) => {
             customerNumber,
             serviceName,
             serviceType,
+            carKilometer,
+            car,
+            carNumber,
+            estimatedCost,
             serviceDate,
             isCompleted,
             productUsed,

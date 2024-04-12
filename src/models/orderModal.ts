@@ -2,13 +2,22 @@ import { ARRAY } from "sequelize";
 import { ENUM } from "sequelize";
 import { BOOLEAN, DATE, INTEGER, Model, STRING, Sequelize } from "sequelize";
 import { ProductService } from "..";
+import { JSONB } from "sequelize";
 
 export interface carServiceOrderAttributes {
     customerNumber: string;
-    serviceName: string;
+    serviceName?: string;
+    car?: number | string;
+    label?: string;
+    image?: string;
+    year?: string;
+    subLabel?: string;
+    addedBy?: string;
     serviceType: "periodic" | "one Time" | "washing" | "checkup";
     serviceDate: Date;
     estimatedCost: number;
+    carNumber?: string;
+    carKilometer?: number;
     isCompleted: boolean;
     createdAt?: Date;
     productUsed?: number[];
@@ -28,26 +37,41 @@ const defineCarServiceOrderModel = (sequelize: Sequelize) => {
                 primaryKey: true,
                 autoIncrement: true,
             },
-
+            car: {
+                type: INTEGER,
+                allowNull: false,
+                references: {
+                    model: 'cars',
+                    key: 'id',
+                },
+            },
+            carNumber:{
+                type: STRING,
+                allowNull: true,
+            },
+            carKilometer:{
+                type: INTEGER,
+                allowNull: true,
+            },
             serviceName: {
                 type: STRING,
-                allowNull: false,
+                allowNull: true,
             },
             estimatedCost: {
                 type: INTEGER,
-                allowNull: false,
+                allowNull: true,
             },
             serviceType: {
                 type: ENUM("periodic", "one Time", "washing", "checkup"),
-                allowNull: false,
+                allowNull: true,
             },
             serviceDate: {
                 type: DATE,
-                allowNull: false,
+                allowNull: true,
             },
             isCompleted: {
                 type: BOOLEAN,
-                allowNull: false,
+                allowNull: true,
                 defaultValue: false,
             },
             createdAt: {
@@ -57,7 +81,7 @@ const defineCarServiceOrderModel = (sequelize: Sequelize) => {
             },
             productUsed: {
                 type: ARRAY(INTEGER),
-                allowNull: false
+                allowNull: true
             },
             garageNumber: {
                 type: STRING,
@@ -67,13 +91,10 @@ const defineCarServiceOrderModel = (sequelize: Sequelize) => {
                     key: 'contactNumber',
                 },
             },
-            customerNumber:{
+            customerNumber: {
                 type: STRING,
                 allowNull: false,
-                references: {
-                    model: 'users',
-                    key: 'phone',
-                },
+                
             }
         }
     );

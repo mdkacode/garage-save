@@ -10,12 +10,16 @@ import userServiceRoute from "./routes/userServiceRoute";
 import garageServiceRoute from "./routes/garageServiceRoute";
 import productServiceRoute from "./routes/productService";
 import orderServicesRoute from "./routes/orderServicesRoute";
+import carServicesRoute from "./routes/carServiceRoute";
 
 import defineUploadFileServiceModel from "./models/uploadFileModal";
 import defineUserServiceModel from "./models/userModal";
 import defineGarageServiceModel from "./models/garageModal";
 import defineProductServiceModel from "./models/productModal";
 import defineOrderServiceModel from "./models/orderModal";
+import defineCarServiceModel from "./models/carListModal";
+import path from "path";
+import coverttopdf from "./utils/pdfFromHtml";
 dotenv.config();
 
 const spaceEndpoint = new aws.Endpoint("blr1.digitaloceanspaces.com");
@@ -24,6 +28,8 @@ export const s3 = new aws.S3({
 });
 
 const app: Express = express();
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/public', express.static('public'));
 app.use(
   cors({
     origin: "*",
@@ -44,14 +50,14 @@ async function testDatabaseConnection() {
 
 testDatabaseConnection();
 
-sequelize.sync({ force: false });
-
+sequelize.sync({ force: false })
 
 export const UploadFileService = defineUploadFileServiceModel(sequelize);
 export const UserService = defineUserServiceModel(sequelize);
 export const GarageService = defineGarageServiceModel(sequelize);
 export const ProductService = defineProductServiceModel(sequelize);
 export const OrderService = defineOrderServiceModel(sequelize);
+export const CarListService = defineCarServiceModel(sequelize);
 // export const authRoutesApi = authRoutes(sequelize);
 
 
@@ -60,7 +66,8 @@ app.use("/api/user", userServiceRoute);
 app.use("/api/garage", garageServiceRoute);
 app.use("/api/product", productServiceRoute);
 app.use("/api/order", orderServicesRoute);
-
+app.use("/api/car", carServicesRoute);
+app.use("/conver", coverttopdf);
 app.get("/", (req: Request, res: Response) => {
   res.send("<marquee>MESSAGE SERVICE</marquee>");
 });

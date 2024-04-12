@@ -45,7 +45,9 @@ router.post("/validateUser", async (req: Request, res: Response) => {
         const userCreateStatus = await UserService.findOne({
             where: { phone, userCode: userCode },
         })
-        return res.json(userCreateStatus);
+        if(userCreateStatus) return res.json(userCreateStatus);
+        else  return res.status(401).json({ error: "User not found" });
+      
     } catch (error) {
         return res.status(500).json({ error: error });
     }
