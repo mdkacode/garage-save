@@ -39,7 +39,7 @@ app.use(
   })
 );
 app.use(express.json());
-const port = 8080;
+const port = 80;
 async function testDatabaseConnection() {
   try {
     await sequelize.authenticate();
