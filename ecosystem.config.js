@@ -1,8 +1,7 @@
 module.exports = {
     apps : [{
       name: 'amruit-backend',
-      script: 'npm',
-      args: 'start:dev',
+      script: 'npm run start:dev',
       env: {
         NODE_ENV: 'production'
       },
