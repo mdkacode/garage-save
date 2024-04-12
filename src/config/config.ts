@@ -25,6 +25,7 @@ const prodConfig ={
 	},
 }
 const { DB_CONNECTION_STRING,DB_MODE } = process.env;
+console.log(DB_CONNECTION_STRING);
 const sequelize = new Sequelize(
 	DB_CONNECTION_STRING || "", // Ensure DB_CONNECTION_STRING is not undefined
 	{
