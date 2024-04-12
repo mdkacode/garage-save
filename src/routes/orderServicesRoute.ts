@@ -10,11 +10,17 @@ const router = express.Router();
 // Create a new car service order
 router.post("/addCustomer", async (req: Request, res: Response) => {
     try {
-        const { customerNumber = "", carNumber = '', carKilometer = 0, serviceName = "", serviceType = "", car, serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0 } = req.body;
+        const { customerNumber = "", carNumber = '', carKilometer = 0, totalCost=0,
+            serviceName = "", serviceType = "", car, serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0 } = req.body;
         const calculatePrice = [];
-        // Check if the customerNumber is of type "customer"
-        // You can add additional validation logic here if needed
+        let total = await ProductService.findAll({ where: { id: { [Op.in]: productUsed } } }).then((products) => {
+                return products.reduce((total, product) => {
+                    let exactPrice = (product.sellingPrice - product.flatDiscount);
+                   return  total + (exactPrice + (exactPrice * (product?.gst || 0) / 100));   
+                }, 0);
+           });
 
+        // totalCost = productUsed.reduce((total, product) => total + product.productPrice, 0);
         const carServiceOrder = await OrderService.create({
             customerNumber,
             serviceName,
@@ -23,7 +29,7 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
             carKilometer,
             serviceType,
             serviceDate,
-            estimatedCost,
+            estimatedCost: total,
             isCompleted,
             productUsed,
             garageNumber,
@@ -55,8 +61,8 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
                 calculatePrice.push(
                     {
                         productName: productInfo?.productName,
-                        productPrice: acutalSellingPrice ,
-                        poductGst:  productInfo?.gst || 0,
+                        productPrice: acutalSellingPrice,
+                        poductGst: productInfo?.gst || 0,
                         productMrp: productInfo?.mrp,
                         productDiscount: productInfo?.mrp ? productInfo?.mrp - acutalSellingPrice : '-',
                     }
@@ -116,8 +122,8 @@ router.get("/customers/:garageNumber", async (req: Request, res: Response) => {
                     });
                 }
 
-               
-                
+
+
             }
             const totalPrice = calculatePrice.reduce((total, product) => total + product.productPrice, 0);
             const totalDiscount = calculatePrice.reduce((total, product) => total + (product?.productMrp ? product?.productMrp - product.productPrice : 0), 0);
@@ -167,6 +173,12 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
         const { id } = req.body;
         const { customerNumber, serviceName, carKilometer, car, carNumber, estimatedCost, serviceType, serviceDate, isCompleted, productUsed, garageNumber } = req.body;
 
+        let total = productUsed ? await ProductService.findAll({ where: { id: { [Op.in]: productUsed } } }).then((products) => {
+            return products.reduce((total, product) => {
+                let exactPrice = (product.sellingPrice - product.flatDiscount);
+               return  total + (exactPrice + (exactPrice * (product?.gst || 0) / 100));   
+            }, 0);
+       }) : 0;
         // Check if the customerNumber is of type "customer"
         // You can add additional validation logic here if needed
 
@@ -176,6 +188,22 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Car service order not found" });
         }
 
+        if( total > 0){
+            await carServiceOrder.update({
+                customerNumber,
+                serviceName,
+                serviceType,
+                carKilometer,
+                car,
+                estimatedCost: total,
+                carNumber,
+                serviceDate,
+                isCompleted,
+                productUsed,
+                garageNumber,
+            });
+        }
+        else 
         await carServiceOrder.update({
             customerNumber,
             serviceName,
@@ -183,7 +211,6 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
             carKilometer,
             car,
             carNumber,
-            estimatedCost,
             serviceDate,
             isCompleted,
             productUsed,
@@ -214,5 +241,206 @@ router.delete("deleteCustomer/:id", async (req: Request, res: Response) => {
         res.status(500).json({ message: "Internal server error" });
     }
 });
+
+router.post("/orderStats", async (req: Request, res: Response) => {
+
+    try {
+        const { type, garageNumber }: { type: 'today' | 'month' | 'year' | 'overall' | 'progress' | 'completed', garageNumber: string } = req.body;
+
+        console.log(type);
+
+
+
+        let totalOrders, completedOrders, pendingOrders, totalRevenue,ordersList;
+
+        if (type === 'today') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            ordersList = await OrderService.findAll({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: today,
+                        [Op.lt]: tomorrow
+                    }
+                }
+            });
+
+            totalOrders = await OrderService.count({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: today,
+                        [Op.lt]: tomorrow
+                    }
+                }
+            });
+            completedOrders = await OrderService.count({
+                where: {
+                    isCompleted: true,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: today,
+                        [Op.lt]: tomorrow
+                    }
+                }
+            });
+            pendingOrders = await OrderService.count({
+                where: {
+                    isCompleted: false,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: today,
+                        [Op.lt]: tomorrow
+                    }
+                }
+            });
+            totalRevenue = await OrderService.sum('estimatedCost', {
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: today,
+                        [Op.lt]: tomorrow
+                    }
+                }
+            });
+        } else if (type === 'month') {
+            const startOfMonth = new Date();
+            startOfMonth.setDate(1);
+            startOfMonth.setHours(0, 0, 0, 0);
+            const endOfMonth = new Date(startOfMonth);
+            endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+            ordersList = await OrderService.findAll({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfMonth,
+                        [Op.lt]: endOfMonth
+                    }
+                }
+            });
+            totalOrders = await OrderService.count({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfMonth,
+                        [Op.lt]: endOfMonth
+                    }
+                }
+            });
+            completedOrders = await OrderService.count({
+                where: {
+                    isCompleted: true,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfMonth,
+                        [Op.lt]: endOfMonth
+                    }
+                }
+            });
+            pendingOrders = await OrderService.count({
+                where: {
+                    isCompleted: false,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfMonth,
+                        [Op.lt]: endOfMonth
+                    }
+                }
+            });
+            totalRevenue = await OrderService.sum('estimatedCost', {
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfMonth,
+                        [Op.lt]: endOfMonth
+                    }
+                }
+            });
+        } else if (type === 'year') {
+            const startOfYear = new Date();
+            startOfYear.setMonth(0, 1);
+            startOfYear.setHours(0, 0, 0, 0);
+            const endOfYear = new Date(startOfYear);
+            endOfYear.setFullYear(endOfYear.getFullYear() + 1);
+            ordersList = await OrderService.findAll({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfYear,
+                        [Op.lt]: endOfYear
+                    }
+                }
+            });
+            totalOrders = await OrderService.count({
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfYear,
+                        [Op.lt]: endOfYear
+                    }
+                }
+            });
+            completedOrders = await OrderService.count({
+                where: {
+                    isCompleted: true,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfYear,
+                        [Op.lt]: endOfYear
+                    }
+                }
+            });
+            pendingOrders = await OrderService.count({
+                where: {
+                    isCompleted: false,
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfYear,
+                        [Op.lt]: endOfYear
+                    }
+                }
+            });
+            totalRevenue = await OrderService.sum('estimatedCost', {
+                where: {
+                    garageNumber,
+                    createdAt: {
+                        [Op.gte]: startOfYear,
+                        [Op.lt]: endOfYear
+                    },
+
+                }
+            });
+        } else if (type === 'overall') {
+            totalOrders = await OrderService.count({ where: { garageNumber } });
+            ordersList = await OrderService.findAll({ where: { garageNumber } });
+            completedOrders = await OrderService.count({ where: { isCompleted: true, garageNumber } });
+            pendingOrders = await OrderService.count({ where: { isCompleted: false, garageNumber } });
+            totalRevenue = await OrderService.sum('estimatedCost');
+        } else if (type === 'progress') {
+            totalOrders = await OrderService.count({ where: { isCompleted: false, garageNumber } });
+            ordersList = await OrderService.findAll({ where: {isCompleted: false, garageNumber } });
+            completedOrders = await OrderService.count({ where: { isCompleted: false, garageNumber } });
+            pendingOrders = 0;
+            totalRevenue = await OrderService.sum('estimatedCost', { where: { isCompleted: false, garageNumber } });
+        } else if (type === 'completed') {
+            totalOrders = await OrderService.count({ where: { isCompleted: true, garageNumber } });
+            completedOrders = totalOrders;
+            ordersList = await OrderService.findAll({ where: { isCompleted:true,garageNumber } });
+            pendingOrders = 0;
+            totalRevenue = await OrderService.sum('estimatedCost', { where: { isCompleted: true, garageNumber } });
+        } else {
+            return res.status(400).json({ message: "Invalid type" });
+        }
+
+        res.json({ totalOrders,ordersList, completedOrders, pendingOrders, totalRevenue });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+})
 
 export default router;

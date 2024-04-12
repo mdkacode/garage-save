@@ -11,8 +11,8 @@ export interface productServiceAttributes {
     car?: string;
     purchasePrice?: number;
     mrp?: number;
-    sellingPrice?: number;
-    flatDiscount?: number;
+    sellingPrice: number;
+    flatDiscount: number;
     percentageDiscount: string;
     gst?: number;
     createdAt?: Date;

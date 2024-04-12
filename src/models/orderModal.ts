@@ -3,6 +3,7 @@ import { ENUM } from "sequelize";
 import { BOOLEAN, DATE, INTEGER, Model, STRING, Sequelize } from "sequelize";
 import { ProductService } from "..";
 import { JSONB } from "sequelize";
+import { FLOAT } from "sequelize";
 
 export interface carServiceOrderAttributes {
     customerNumber: string;
@@ -58,7 +59,7 @@ const defineCarServiceOrderModel = (sequelize: Sequelize) => {
                 allowNull: true,
             },
             estimatedCost: {
-                type: INTEGER,
+                type: FLOAT,
                 allowNull: true,
             },
             serviceType: {
