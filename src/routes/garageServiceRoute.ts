@@ -53,7 +53,7 @@ router.get("/getGarageServices", async (req: Request, res: Response) => {
 router.get("/getGarageService/:phoneNumber", async (req: Request, res: Response) => {
     const { phoneNumber } = req.params;
     try {
-        const garageService = await GarageService.findAll({
+        const garageService = await GarageService.findOne({
             where:{
                 contactNumber:phoneNumber
             }

@@ -5,6 +5,12 @@ import { ProductService } from "..";
 import { JSONB } from "sequelize";
 import { FLOAT } from "sequelize";
 
+export interface imagesForOrder {
+    image: string;
+    uploadedBy: string;
+    tag:"before" | "after" | "other";
+    createdAt: Date;
+}
 export interface carServiceOrderAttributes {
     customerNumber: string;
     serviceName?: string;
@@ -13,6 +19,7 @@ export interface carServiceOrderAttributes {
     image?: string;
     year?: string;
     subLabel?: string;
+    images?: imagesForOrder[];
     addedBy?: string;
     serviceType: "periodic" | "one Time" | "washing" | "checkup";
     serviceDate: Date;
@@ -45,6 +52,10 @@ const defineCarServiceOrderModel = (sequelize: Sequelize) => {
                     model: 'cars',
                     key: 'id',
                 },
+            },
+            images:{
+                type: JSONB,
+                allowNull: true,
             },
             carNumber:{
                 type: STRING,

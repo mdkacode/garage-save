@@ -30,6 +30,9 @@ export const s3 = new aws.S3({
 const app: Express = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/public', express.static('public'));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(
   cors({
     origin: "*",

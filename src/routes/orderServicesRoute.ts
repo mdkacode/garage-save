@@ -11,7 +11,7 @@ const router = express.Router();
 router.post("/addCustomer", async (req: Request, res: Response) => {
     try {
         const { customerNumber = "", carNumber = '', carKilometer = 0, totalCost=0,
-            serviceName = "", serviceType = "", car, serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0 } = req.body;
+            serviceName = "", serviceType = "", car, serviceDate = "", isCompleted = false, productUsed = "", garageNumber = "", estimatedCost = 0,images=[] } = req.body;
         const calculatePrice = [];
         let total = await ProductService.findAll({ where: { id: { [Op.in]: productUsed } } }).then((products) => {
                 return products.reduce((total, product) => {
@@ -20,12 +20,14 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
                 }, 0);
            });
 
+           console.log(images);
         // totalCost = productUsed.reduce((total, product) => total + product.productPrice, 0);
         const carServiceOrder = await OrderService.create({
             customerNumber,
             serviceName,
             car,
             carNumber,
+            images,
             carKilometer,
             serviceType,
             serviceDate,
@@ -82,7 +84,10 @@ router.post("/addCustomer", async (req: Request, res: Response) => {
 router.get("/customers/:garageNumber", async (req: Request, res: Response) => {
     try {
         const { garageNumber } = req.params;
-        const carServiceOrders = await OrderService.findAll({ where: { garageNumber } });
+        const carServiceOrders = await OrderService.findAll({ 
+            where: { garageNumber },
+            order: [['updatedAt', 'DESC']]
+        });
 
         const ordersWithProducts = [];
         for (const order of carServiceOrders) {
@@ -171,7 +176,7 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
     try {
 
         const { id } = req.body;
-        const { customerNumber, serviceName, carKilometer, car, carNumber, estimatedCost, serviceType, serviceDate, isCompleted, productUsed, garageNumber } = req.body;
+        const { customerNumber, serviceName, carKilometer, car, carNumber, estimatedCost, serviceType, serviceDate, isCompleted, productUsed, garageNumber,images=[] } = req.body;
 
         let total = productUsed ? await ProductService.findAll({ where: { id: { [Op.in]: productUsed } } }).then((products) => {
             return products.reduce((total, product) => {
@@ -181,7 +186,7 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
        }) : 0;
         // Check if the customerNumber is of type "customer"
         // You can add additional validation logic here if needed
-
+       console.log(images);
         const carServiceOrder = await OrderService.findByPk(id);
 
         if (!carServiceOrder) {
@@ -195,6 +200,7 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
                 serviceType,
                 carKilometer,
                 car,
+                images,
                 estimatedCost: total,
                 carNumber,
                 serviceDate,
@@ -210,6 +216,7 @@ router.put("/updateCustomer/:id", async (req: Request, res: Response) => {
             serviceType,
             carKilometer,
             car,
+            images,
             carNumber,
             serviceDate,
             isCompleted,

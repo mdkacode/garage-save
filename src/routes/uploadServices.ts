@@ -6,16 +6,16 @@ import { S3Client } from "@aws-sdk/client-s3";
 import multer from "multer";
 import multers3 from "multer-s3";
 
-const { AWS_ACCESS_KEY, AWS_SECEET_KEY, AWS_URL } = process.env;
+const { AWS_ACCESS_KEY, AWS_SECEET_KEY, AWS_URL,BUCKET_NAME } = process.env;
 export type ifileName =
-  | "dob"
-  | "aadhar"
-  | "pan"
-  | "passport"
-  | "voterId"
-  | "drivingLicense"
-  | "rationCard"
-  | "electricityBill"
+  | "frontLeft"
+  | "frontRight"
+  | "front"
+  | "backLeft"
+  | "backRight"
+  | "back"
+  | "leftFrontDoor"
+  | "rightFrontDoor"
   | "waterBill"
   | "telephoneBill"
   | "gasBill"
@@ -37,8 +37,7 @@ export type ifileName =
 	// eslint-disable-next-line
 	//@ts-ignore
 const s3Config = new S3Client({
-  region: "blr1",
-  endpoint: AWS_URL,
+  region: "ap-south-1",
   credentials: {
     accessKeyId: AWS_ACCESS_KEY,
     secretAccessKey: AWS_SECEET_KEY,
@@ -51,8 +50,8 @@ import path from "path";
 const upload = multer({
   storage: multers3({
     s3: s3Config,
-    bucket: "hpca",
-    acl: "public-read",
+    bucket: BUCKET_NAME?.toString() as string,
+   
     key: function (req: Request & { query: any }, file, cb) {
       // eslint-disable-next-line no-console
       interface FileName {
@@ -75,7 +74,7 @@ const upload = multer({
         );
       }
 
-      const maxFileSize = 10 * 1024 * 1024;
+      const maxFileSize = 100 * 1024 * 1024;
       if (file.size > maxFileSize) {
         return cb(new Error("File size exceeds the maximum limit of 10 MB"));
       }
@@ -95,6 +94,7 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       upload(req, res, async function (error) {
+        console.log('ffofoof');
         if (error) {
           // eslint-disable-next-line no-console
           console.log(error);
